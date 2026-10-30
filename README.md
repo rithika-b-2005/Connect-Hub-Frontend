@@ -44,6 +44,22 @@ set `VITE_API_URL` in the site's environment variables to the deployed backend
 URL and trigger a new build. Vite embeds `VITE_*` values at build time, so do
 not put secrets in them.
 
+## Deployment
+
+Deployed at <https://connect-hub-frontend-1.onrender.com/> as a Render **static
+site** (build command `npm ci && npm run build`, publish path `./dist`).
+
+`render.yaml` declares the SPA rewrite rule — every path that does not match a
+real file in `dist/` is rewritten to `/index.html`. Without it, refreshing on
+`/login`, `/posts`, or any other client-side route returns a 404, because the
+static file server has no fallback for `BrowserRouter` deep links.
+
+If the site was created from the Render dashboard rather than a Blueprint, add
+the same rule manually: **Static Site → Settings → Rewrites → Add Rewrite**,
+source `/*`, destination `/index.html`, type *Rewrite*, then redeploy.
+
+`public/_redirects` carries the equivalent rule for Netlify.
+
 ## Development demo accounts
 
 | Email               | Password | Role |
