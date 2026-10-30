@@ -40,9 +40,9 @@ npm run dev    # http://localhost:5173
 The API base URL is configured with `VITE_API_URL`. Copy `.env.example` to
 `.env.local` for local development and point it at the backend, for example
 `http://localhost:3000`. Production builds use `.env.production`; on Netlify,
-you can instead define `VITE_API_URL` in the site's environment variables and
-trigger a new build. Vite embeds `VITE_*` values at build time, so do not put
-secrets in them.
+set `VITE_API_URL` in the site's environment variables to the deployed backend
+URL and trigger a new build. Vite embeds `VITE_*` values at build time, so do
+not put secrets in them.
 
 ## Development demo accounts
 
