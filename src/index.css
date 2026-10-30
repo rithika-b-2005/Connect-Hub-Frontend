@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Material 3 palette from the ConnectHub design */
+  --color-primary: #2a14b4;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #4338ca;
+  --color-primary-fixed: #e3dfff;
+  --color-surface: #faf8ff;
+  --color-surface-tint: #5148d7;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f3ff;
+  --color-surface-container: #eaedff;
+  --color-surface-container-high: #e2e7ff;
+  --color-surface-container-highest: #dae2fd;
+  --color-secondary: #006c49;
+  --color-secondary-container: #6cf8bb;
+  --color-secondary-fixed: #6ffbbe;
+  --color-on-surface: #131b2e;
+  --color-on-surface-variant: #464554;
+  --color-outline: #777586;
+  --color-outline-variant: #c7c4d7;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+}
+
+/* Invisible scrollbars everywhere — scrolling still works */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.icon-filled {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
