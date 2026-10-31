@@ -98,6 +98,21 @@ export async function apiLogin(request, credentials = E2E_USER, { fresh = false 
   });
 
   if (!response || !response.ok()) {
+    // The account may simply not exist yet — a wiped database, or a first run
+    // against a fresh backend. Sign up for it and use the token signup
+    // returns, which is one request instead of a login.
+    if (response?.status() === 401) {
+      try {
+        const created = await createTestAccount(request, credentials);
+        sessionCache.set(credentials.email, created);
+        writeCachedSession(credentials.email, created);
+        return created;
+      } catch {
+        // The account does exist and the sign in was rejected. Fall through
+        // and report the login failure, which says more.
+      }
+    }
+
     throw new Error(
       `API login failed for ${credentials.email}: ${response?.status()} ${
         response ? await response.text() : 'no response'
