@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import { toUserMessage } from "../api/errors";
+import { mediaSrc } from "../api/media";
 import { useAuth } from "../context/AuthContext";
 
 const errMsg = (err, fallback) => toUserMessage(err, fallback);
@@ -117,7 +118,7 @@ export default function Users() {
     <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-fixed text-xs font-bold text-primary">
       {u.avatarUrl ? (
         <img
-          src={`${api.defaults.baseURL}${u.avatarUrl}`}
+          src={mediaSrc(u.avatarUrl)}
           alt={u.name}
           className="h-full w-full object-cover"
         />

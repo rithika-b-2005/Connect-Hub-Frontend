@@ -62,7 +62,7 @@ test.describe('API contract', () => {
 
   test('creating a post requires authentication', async ({ request }) => {
     const response = await request.post(`${API_URL}/posts`, {
-      multipart: { title: 'anonymous', description: 'should not be created' },
+      data: { title: 'anonymous', description: 'should not be created' },
     });
     expect(response.status()).toBe(401);
   });
@@ -74,7 +74,7 @@ test.describe('API contract', () => {
     const title = marker('api-roundtrip');
     const created = await request.post(`${API_URL}/posts`, {
       headers,
-      multipart: { title, description: 'API round trip fixture' },
+      data: { title, description: 'API round trip fixture' },
     });
     expect(created.status()).toBe(201);
     const post = await created.json();
@@ -110,7 +110,7 @@ test.describe('API contract', () => {
     const title = marker('api-comment');
     const created = await request.post(`${API_URL}/posts`, {
       headers,
-      multipart: { title, description: 'comment fixture' },
+      data: { title, description: 'comment fixture' },
     });
     const post = await created.json();
 
@@ -134,5 +134,71 @@ test.describe('API contract', () => {
     const response = await request.get(`${API_URL}/definitely-not-a-route`);
     expect(response.status()).toBe(404);
     expect(response.headers()['content-type']).toContain('application/json');
+  });
+
+  test('the media endpoint refuses anonymous callers', async ({ request }) => {
+    const response = await request.post(`${API_URL}/media/presign`, {
+      data: { kind: 'media', contentType: 'image/png', size: 1024 },
+    });
+    expect(response.status()).toBe(401);
+  });
+
+  test('a file is uploaded to the bucket and attached to a post', async ({ request }) => {
+    // Media only works once the bucket is configured. The status endpoint
+    // says so, and the rest of the suite does not depend on it.
+    const status = await request.get(`${API_URL}/media/status`);
+    const configured = status.ok() ? (await status.json()).configured : false;
+    test.skip(!configured, 'Media storage is not configured on this backend');
+
+    const { token } = await apiLogin(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const presign = await request.post(`${API_URL}/media/presign`, {
+      headers,
+      data: { kind: 'media', contentType: 'image/png', size: 8 },
+    });
+    expect(presign.status()).toBe(201);
+
+    const { key, uploadUrl, publicUrl, headers: uploadHeaders } = await presign.json();
+    expect(key).toMatch(/^posts\/[a-f0-9]{32}\.png$/);
+
+    // The browser PUTs the bytes to the bucket, never to the API.
+    const uploaded = await request.put(uploadUrl, {
+      headers: uploadHeaders,
+      data: Buffer.from('89504e470d0a1a0a', 'hex'),
+    });
+    expect(uploaded.status(), await uploaded.text()).toBeLessThan(300);
+
+    const created = await request.post(`${API_URL}/posts`, {
+      headers,
+      data: {
+        title: marker('media'),
+        description: 'media fixture',
+        media: [{ key }],
+      },
+    });
+    expect(created.status()).toBe(201);
+
+    const post = await created.json();
+    expect(post.media).toHaveLength(1);
+    expect(post.media[0].url).toBe(publicUrl);
+    expect(post.media[0].type).toBe('image');
+
+    // The object is readable at the address the API stored.
+    const fetched = await request.get(publicUrl);
+    expect(fetched.status()).toBe(200);
+  });
+
+  test('the presign endpoint rejects a file type that is not allowed', async ({ request }) => {
+    const status = await request.get(`${API_URL}/media/status`);
+    const configured = status.ok() ? (await status.json()).configured : false;
+    test.skip(!configured, 'Media storage is not configured on this backend');
+
+    const { token } = await apiLogin(request);
+    const response = await request.post(`${API_URL}/media/presign`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { kind: 'media', contentType: 'text/html', size: 8 },
+    });
+    expect(response.status()).toBe(400);
   });
 });

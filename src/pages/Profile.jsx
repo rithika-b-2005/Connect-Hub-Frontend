@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { toUserMessage } from '../api/errors';
+import { mediaSrc, uploadFile } from '../api/media';
 import { useAuth } from '../context/AuthContext';
 
 const ACCEPTED_PHOTO = 'image/jpeg,image/png,image/gif,image/webp';
-
-// Uploaded files are served by the API, not the frontend dev server
-const mediaSrc = (url) => `${api.defaults.baseURL}${url}`;
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
@@ -34,9 +32,10 @@ export default function Profile() {
     if (!file) return;
     setUploadingPhoto(kind);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const { data } = await api.post(`/users/me/${kind}`, form);
+      // The photo goes straight to the storage bucket; the API only records
+      // the key it was stored under.
+      const uploaded = await uploadFile(file, kind);
+      const { data } = await api.post(`/users/me/${kind}`, { key: uploaded.key });
       setProfile(data);
       if (kind === 'avatar') updateUser({ avatarUrl: data.avatarUrl });
     } catch (err) {

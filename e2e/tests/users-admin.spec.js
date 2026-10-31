@@ -197,7 +197,7 @@ test.describe('post moderation (admin)', () => {
 
     const created = await request.post(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${author.token}` },
-      multipart: { title, description: 'post awaiting moderation' },
+      data: { title, description: 'post awaiting moderation' },
     });
     expect(created.status()).toBe(201);
 
@@ -239,7 +239,7 @@ test.describe('post moderation (admin)', () => {
 
     const created = await request.post(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${author.token}` },
-      multipart: { title, description: 'post to be restricted' },
+      data: { title, description: 'post to be restricted' },
     });
     const post = await created.json();
 

@@ -317,7 +317,7 @@ export async function deletePost(request, token, postId) {
 export async function createPost(request, token, { title, description }) {
   const response = await request.post(`${API_URL}/posts`, {
     headers: { Authorization: `Bearer ${token}` },
-    multipart: {
+    data: {
       title,
       description,
     },

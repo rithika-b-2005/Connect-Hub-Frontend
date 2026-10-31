@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/axios';
 import { toUserMessage } from '../api/errors';
+import { mediaSrc, uploadFile } from '../api/media';
 import { useAuth } from '../context/AuthContext';
 
 const MAX_MEDIA_FILES = 5;
 const MAX_MEDIA_SIZE_MB = 50;
 const ACCEPTED_MEDIA = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime';
-
-// Uploaded files are served by the API, not the frontend dev server
-const mediaSrc = (url) => `${api.defaults.baseURL}${url}`;
 
 function CreatePostModal({ user, onClose, onCreated }) {
   const [title, setTitle] = useState('');
@@ -55,11 +53,18 @@ function CreatePostModal({ user, onClose, onCreated }) {
     setError('');
     setSaving(true);
     try {
-      const form = new FormData();
-      form.append('title', title);
-      form.append('description', description);
-      files.forEach((f) => form.append('media', f.file));
-      await api.post('/posts', form);
+      // The files go straight to the storage bucket; the post only carries
+      // the keys they were stored under.
+      const uploaded = await Promise.all(
+        files.map((f) => uploadFile(f.file, 'media')),
+      );
+
+      await api.post('/posts', {
+        title,
+        description,
+        media: uploaded.map((u) => ({ key: u.key })),
+      });
+
       files.forEach((file) => URL.revokeObjectURL(file.url));
       setTitle('');
       setDescription('');

@@ -82,7 +82,7 @@ test.describe('posts feed', () => {
     for (const t of [title, other]) {
       await request.post(`${API_URL}/posts`, {
         headers: { Authorization: `Bearer ${token}` },
-        multipart: { title: t, description: 'search fixture' },
+        data: { title: t, description: 'search fixture' },
       });
       created.push(t);
     }
@@ -98,7 +98,7 @@ test.describe('posts feed', () => {
     const title = marker('likeable');
     await request.post(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${token}` },
-      multipart: { title, description: 'like fixture' },
+      data: { title, description: 'like fixture' },
     });
     created.push(title);
 
@@ -142,7 +142,7 @@ test.describe('posts feed', () => {
     for (const t of [viewed, ignored]) {
       await request.post(`${API_URL}/posts`, {
         headers: { Authorization: `Bearer ${token}` },
-        multipart: { title: t, description: 'sort fixture' },
+        data: { title: t, description: 'sort fixture' },
       });
       created.push(t);
     }
@@ -182,7 +182,7 @@ test.describe('posts feed', () => {
     const commentText = `comment ${marker('c')}`;
     await request.post(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${token}` },
-      multipart: { title, description: 'comment fixture' },
+      data: { title, description: 'comment fixture' },
     });
     created.push(title);
 
@@ -205,7 +205,7 @@ test.describe('posts feed', () => {
     const title = marker('deletable');
     await request.post(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${token}` },
-      multipart: { title, description: 'delete fixture' },
+      data: { title, description: 'delete fixture' },
     });
 
     await page.reload();

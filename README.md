@@ -74,6 +74,18 @@ the rewrite rule manually as well — it turns the 404 into a 200:
 
 `public/_redirects` carries the equivalent rule for Netlify.
 
+## Media uploads
+
+Images and videos are not sent through the API. The browser asks the API for
+a presigned URL, `PUT`s the file straight to the storage bucket, and then
+sends the key with the post. The API never holds the bytes, so a video does
+not have to fit in a request body, and nothing is written to the API's disk —
+which on Render is wiped on every deploy.
+
+The bucket lives in the backend's configuration. See the backend README for
+the R2 setup. Until it is configured the API answers `503` to
+`POST /media/presign` and the UI shows the message.
+
 ## End-to-end tests
 
 Playwright drives the built app in a real browser against the real backend.

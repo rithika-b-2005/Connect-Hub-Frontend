@@ -74,7 +74,7 @@ test.describe('notifications about moderation', () => {
 
     const created = await request.post(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${author.token}` },
-      multipart: { title, description: 'post that will be moderated' },
+      data: { title, description: 'post that will be moderated' },
     });
     const post = await created.json();
 
