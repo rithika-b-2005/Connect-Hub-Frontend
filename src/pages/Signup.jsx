@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toUserMessage } from '../api/errors';
 import { useAuth } from '../context/AuthContext';
 
 export default function Signup() {
@@ -20,9 +21,7 @@ export default function Signup() {
       await signup(name, email, password);
       navigate('/');
     } catch (err) {
-      const message = err.response?.data?.message;
-      const errorMessage = Array.isArray(message) ? message[0] : message;
-      setError(typeof errorMessage === 'string' && errorMessage ? errorMessage : 'Signup failed');
+      setError(toUserMessage(err, 'Could not create your account.'));
     } finally {
       setLoading(false);
     }
@@ -40,12 +39,12 @@ export default function Signup() {
           <div className="absolute h-[360px] w-[360px] translate-x-48 translate-y-32 rounded-full bg-secondary-fixed/20 opacity-40 blur-2xl" />
         </div>
 
-        <div className="relative z-10 w-full max-w-[480px] px-4">
+        <div className="relative z-10 w-full max-w-[480px] sm:px-4">
           {/* Brand header */}
           <div className="mb-4 flex flex-col items-center text-center">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-surface-container-low px-4 py-1.5 shadow-sm">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-on-primary shadow-md">
-                <span className="material-symbols-outlined icon-filled text-[18px]">hub</span>
+                <span aria-hidden="true" className="material-symbols-outlined icon-filled text-[18px]">hub</span>
               </div>
               <span className="font-heading text-lg font-bold tracking-tight text-on-surface">
                 ConnectHub
@@ -60,7 +59,7 @@ export default function Signup() {
           </div>
 
           {/* Auth card */}
-          <div className="relative overflow-hidden rounded-[2rem] bg-surface-container-lowest p-8 shadow-xl">
+          <div className="relative overflow-hidden rounded-[2rem] bg-surface-container-lowest p-6 shadow-xl sm:p-8">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-surface-tint to-secondary-container" />
 
             {error && (
@@ -76,7 +75,7 @@ export default function Signup() {
                   Full Name
                 </label>
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
+                  <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
                     badge
                   </span>
                   <input
@@ -97,7 +96,7 @@ export default function Signup() {
                   Work Email
                 </label>
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
+                  <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
                     alternate_email
                   </span>
                   <input
@@ -118,7 +117,7 @@ export default function Signup() {
                   Password
                 </label>
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
+                  <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
                     lock
                   </span>
                   <input
@@ -140,7 +139,7 @@ export default function Signup() {
                     onClick={() => setShowPassword((s) => !s)}
                     className="absolute right-3 flex cursor-pointer items-center justify-center rounded-full p-1 text-outline transition-colors hover:bg-surface-container-high hover:text-on-surface"
                   >
-                    <span className="material-symbols-outlined text-[20px]">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
                       {showPassword ? 'visibility_off' : 'visibility'}
                     </span>
                   </button>
@@ -155,7 +154,7 @@ export default function Signup() {
               >
                 {loading ? 'Creating account...' : 'Create Account'}
                 {!loading && (
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_forward</span>
                 )}
               </button>
             </form>
@@ -174,7 +173,7 @@ export default function Signup() {
               to="/login"
               className="flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl bg-surface-container-low text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container"
             >
-              <span className="material-symbols-outlined icon-filled text-[20px] text-primary">
+              <span aria-hidden="true" className="material-symbols-outlined icon-filled text-[20px] text-primary">
                 login
               </span>
               Sign in instead

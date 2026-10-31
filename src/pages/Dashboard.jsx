@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import api from '../api/axios';
+import { toUserMessage } from '../api/errors';
 import { useAuth } from '../context/AuthContext';
 
 function StatCard({ label, value, icon, tone }) {
@@ -20,14 +21,14 @@ function StatCard({ label, value, icon, tone }) {
     neutral: 'bg-primary-fixed text-primary',
   };
   return (
-    <div className="flex flex-col justify-between rounded-2xl bg-surface-container-lowest p-6 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] transition-shadow hover:shadow-[0_10px_30px_-4px_rgba(67,56,202,0.10)]">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col justify-between rounded-2xl bg-surface-container-lowest p-4 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] transition-shadow hover:shadow-[0_10px_30px_-4px_rgba(67,56,202,0.10)] sm:p-6">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-on-surface-variant">{label}</span>
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${tones[tone]}`}>
-          <span className="material-symbols-outlined text-[24px]">{icon}</span>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-12 sm:w-12 ${tones[tone]}`}>
+          <span aria-hidden="true" className="material-symbols-outlined text-[22px] sm:text-[24px]">{icon}</span>
         </div>
       </div>
-      <div className="font-heading text-4xl font-bold leading-none text-on-surface">
+      <div className="font-heading text-3xl font-bold leading-none text-on-surface sm:text-4xl">
         {value}
       </div>
     </div>
@@ -40,9 +41,9 @@ function LikesChart({ data, title, subtitle }) {
     likes: p.likes,
   }));
   return (
-    <div className="rounded-2xl bg-surface-container-lowest p-6 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] lg:col-span-7">
+    <div className="rounded-2xl bg-surface-container-lowest p-4 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] sm:p-6 lg:col-span-7">
       <div className="mb-4">
-        <h2 className="font-heading text-xl font-semibold text-on-surface">{title}</h2>
+        <h2 className="font-heading text-lg font-semibold text-on-surface sm:text-xl">{title}</h2>
         <p className="text-xs text-on-surface-variant">{subtitle}</p>
       </div>
       {chartData.length === 0 ? (
@@ -50,11 +51,11 @@ function LikesChart({ data, title, subtitle }) {
           No posts yet — data appears once posts exist.
         </p>
       ) : (
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={240}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e7ff" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#464554' }} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#464554' }} />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#464554' }} interval="preserveStartEnd" />
+            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#464554' }} width={30} />
             <Tooltip
               cursor={{ fill: '#f2f3ff' }}
               contentStyle={{ borderRadius: 12, border: '1px solid #e2e7ff' }}
@@ -69,10 +70,10 @@ function LikesChart({ data, title, subtitle }) {
 
 function PostList({ posts, title, subtitle, showAuthor }) {
   return (
-    <div className="flex flex-col justify-between rounded-2xl bg-surface-container-lowest p-6 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] lg:col-span-5">
+    <div className="flex flex-col justify-between rounded-2xl bg-surface-container-lowest p-4 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] sm:p-6 lg:col-span-5">
       <div>
         <div className="mb-4">
-          <h2 className="font-heading text-xl font-semibold text-on-surface">{title}</h2>
+          <h2 className="font-heading text-lg font-semibold text-on-surface sm:text-xl">{title}</h2>
           <p className="text-xs text-on-surface-variant">{subtitle}</p>
         </div>
         <div className="flex flex-col gap-1">
@@ -86,7 +87,7 @@ function PostList({ posts, title, subtitle, showAuthor }) {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-container-high text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-                  <span className="material-symbols-outlined text-[20px]">article</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[20px]">article</span>
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-on-surface group-hover:text-primary">
@@ -99,13 +100,13 @@ function PostList({ posts, title, subtitle, showAuthor }) {
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs font-semibold">
                 <span className="flex items-center gap-1 text-on-surface">
-                  <span className="material-symbols-outlined icon-filled text-[16px] text-error">
+                  <span aria-hidden="true" className="material-symbols-outlined icon-filled text-[16px] text-error">
                     favorite
                   </span>
                   {p.likes}
                 </span>
                 <span className="flex items-center gap-1 text-on-surface-variant">
-                  <span className="material-symbols-outlined text-[16px]">visibility</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">visibility</span>
                   {p.views}
                 </span>
               </div>
@@ -117,7 +118,7 @@ function PostList({ posts, title, subtitle, showAuthor }) {
         to="/posts"
         className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-surface-container-low py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-surface-container-high"
       >
-        <span className="material-symbols-outlined text-[18px]">dynamic_feed</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">dynamic_feed</span>
         View All Posts
       </Link>
     </div>
@@ -143,11 +144,7 @@ export default function Dashboard() {
       })
       .catch((err) => {
         if (!active) return;
-        const message = err.response?.data?.message;
-        setError(
-          (Array.isArray(message) ? message[0] : message) ||
-            'Could not load analytics. Please try again.',
-        );
+        setError(toUserMessage(err, 'Could not load analytics. Please try again.'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -193,7 +190,7 @@ export default function Dashboard() {
               Live Analytics
             </span>
           </div>
-          <h1 className="font-heading text-3xl font-bold tracking-tight text-on-surface md:text-4xl">
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-on-surface sm:text-3xl md:text-4xl">
             Welcome back, {user?.name}
           </h1>
           <p className="max-w-xl text-sm text-on-surface-variant">
@@ -207,7 +204,7 @@ export default function Dashboard() {
             to="/posts"
             className="flex items-center gap-1 self-start rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-[0_4px_16px_rgba(42,20,180,0.22)] transition-all hover:bg-primary-container md:self-auto"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
             Create Post
           </Link>
         )}

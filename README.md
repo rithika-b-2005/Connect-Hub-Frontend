@@ -60,6 +60,36 @@ source `/*`, destination `/index.html`, type *Rewrite*, then redeploy.
 
 `public/_redirects` carries the equivalent rule for Netlify.
 
+## End-to-end tests
+
+Playwright drives the built app in a real browser against the real backend.
+
+```bash
+npm run test:e2e          # desktop + mobile, against a local preview build
+npm run test:e2e:live     # the deployed Render site
+npm run test:e2e:report   # open the HTML report
+```
+
+The suite covers the API contract, sign in / sign up / sign out, the
+dashboard, the posts feed (create, search, sort, like, comment, delete,
+media), the profile (name, password, avatar), notifications, the responsive
+layout at eight viewport widths, and the admin surface (user management,
+post moderation).
+
+Two environment variables unlock the admin scenarios — without them those
+tests are skipped:
+
+```bash
+E2E_ADMIN_EMAIL=admin@connecthub.com E2E_ADMIN_PASSWORD=... npm run test:e2e
+```
+
+`E2E_API_URL` and `E2E_LIVE_URL` point the suite at a different deployment.
+
+Two things the suite has to work around, both recorded in `BUG-REPORT.md`:
+the backend throttles `POST /auth/login` and only sends
+`access-control-allow-origin` for the deployed frontend, so the suite caches
+the session token and runs the test browser with `--disable-web-security`.
+
 ## Development demo accounts
 
 | Email               | Password | Role |

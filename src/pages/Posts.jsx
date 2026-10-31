@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/axios';
+import { toUserMessage } from '../api/errors';
 import { useAuth } from '../context/AuthContext';
 
 const MAX_MEDIA_FILES = 5;
@@ -9,7 +10,7 @@ const ACCEPTED_MEDIA = 'image/jpeg,image/png,image/gif,image/webp,video/mp4,vide
 // Uploaded files are served by the API, not the frontend dev server
 const mediaSrc = (url) => `${api.defaults.baseURL}${url}`;
 
-function CreatePostModal({ onClose, onCreated }) {
+function CreatePostModal({ user, onClose, onCreated }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [files, setFiles] = useState([]); // { file, url, isVideo }
@@ -59,139 +60,149 @@ function CreatePostModal({ onClose, onCreated }) {
       form.append('description', description);
       files.forEach((f) => form.append('media', f.file));
       await api.post('/posts', form);
-      onCreated();
+      files.forEach((file) => URL.revokeObjectURL(file.url));
+      setTitle('');
+      setDescription('');
+      setFiles([]);
+      await onCreated();
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg[0] : msg || 'Could not create post');
+      setError(toUserMessage(err, 'Could not create post'));
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-4 backdrop-blur-sm">
-      <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-[2rem] bg-surface-container-lowest shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-8 py-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-post-title"
+        className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-y-auto rounded-[2rem] bg-surface-container-lowest p-4 shadow-2xl sm:p-6"
+      >
+        <header className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-fixed text-primary">
-              <span className="material-symbols-outlined text-[22px]">post_add</span>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-fixed text-primary">
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px]">post_add</span>
             </div>
             <div>
-              <h3 className="font-heading text-xl font-bold text-on-surface">Create New Post</h3>
+              <h2 id="create-post-title" className="font-heading text-lg font-bold text-on-surface">
+                Create New Post
+              </h2>
               <p className="text-xs text-on-surface-variant">Share something with the community</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+            aria-label="Close create post"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
           >
-            <span className="material-symbols-outlined text-[22px]">close</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[22px]">close</span>
           </button>
+        </header>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-bold text-on-primary">
+            {user?.avatarUrl ? (
+              <img src={mediaSrc(user.avatarUrl)} alt="" className="h-full w-full object-cover" />
+            ) : (
+              user?.name?.[0]?.toUpperCase()
+            )}
+          </div>
+          <p className="text-sm font-semibold text-on-surface">Share with the community</p>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-5 px-8 pb-2">
-            {error && <p className="rounded-xl bg-error-container px-4 py-2.5 text-sm text-error">{error}</p>}
-            <div className="flex flex-col gap-1.5">
-              <label className="flex items-center justify-between text-sm font-semibold text-on-surface" htmlFor="post-title">
-                Post Title
-                <span className="text-[10px] font-bold uppercase tracking-wider text-outline">Required</span>
-              </label>
-              <input
-                id="post-title"
-                type="text"
-                required
-                maxLength={150}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter post title..."
-                className="w-full rounded-2xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none transition-all placeholder:text-outline focus:bg-surface-container-lowest focus:shadow-[0_0_0_3px_rgba(67,56,202,0.15)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-on-surface" htmlFor="post-description">
-                Description
-              </label>
-              <textarea
-                id="post-description"
-                required
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Write your post description..."
-                className="w-full resize-none rounded-2xl bg-surface-container-low p-4 text-sm text-on-surface outline-none transition-all placeholder:text-outline focus:bg-surface-container-lowest focus:shadow-[0_0_0_3px_rgba(67,56,202,0.15)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="flex items-center justify-between text-sm font-semibold text-on-surface">
-                Photos & Videos
-                <span className="text-[10px] font-bold uppercase tracking-wider text-outline">Optional</span>
-              </label>
-              {files.length > 0 && (
-                <div className="grid grid-cols-5 gap-2">
-                  {files.map((f, i) => (
-                    <div key={f.url} className="relative aspect-square overflow-hidden rounded-xl bg-surface-container-low">
-                      {f.isVideo ? (
-                        <video src={f.url} muted className="h-full w-full object-cover" />
-                      ) : (
-                        <img src={f.url} alt="" className="h-full w-full object-cover" />
-                      )}
-                      {f.isVideo && (
-                        <span className="material-symbols-outlined pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[22px] text-white drop-shadow">
-                          play_circle
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeFile(i)}
-                        title="Remove"
-                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-on-surface/70 text-white transition-colors hover:bg-error"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">close</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {files.length < MAX_MEDIA_FILES && (
-                <label
-                  htmlFor="post-media"
-                  className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-outline-variant bg-surface-container-low px-4 py-4 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
-                >
-                  <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
-                  Add photos or videos ({files.length}/{MAX_MEDIA_FILES})
-                </label>
-              )}
-              <input id="post-media" type="file" multiple accept={ACCEPTED_MEDIA} onChange={addFiles} className="hidden" />
-              <p className="text-[11px] text-outline">
-                JPEG, PNG, GIF, WebP, MP4, WebM, MOV — up to {MAX_MEDIA_SIZE_MB}
-                MB each
-              </p>
-            </div>
-          </div>
+        <label className="sr-only" htmlFor="post-title">Post Title</label>
+        <input
+          id="post-title"
+          type="text"
+          required
+          maxLength={150}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Post title"
+          className="w-full rounded-xl bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none placeholder:text-outline focus:bg-surface-container-high"
+        />
+        <label className="sr-only" htmlFor="post-description">Description</label>
+        <textarea
+          id="post-description"
+          required
+          rows={3}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What would you like to share?"
+          className="w-full resize-y rounded-xl bg-surface-container-low p-4 text-sm text-on-surface outline-none placeholder:text-outline focus:bg-surface-container-high"
+        />
 
-          {/* Footer */}
-          <div className="mt-4 flex items-center justify-end gap-3 bg-surface-container-low px-8 py-5">
+        {files.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {files.map((file, index) => (
+              <div key={file.url} className="relative aspect-square overflow-hidden rounded-xl bg-surface-container-low">
+                {file.isVideo ? (
+                  <video src={file.url} muted className="h-full w-full object-cover" />
+                ) : (
+                  <img src={file.url} alt="" className="h-full w-full object-cover" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  aria-label={`Remove ${file.file.name}`}
+                  className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-on-surface/70 text-white hover:bg-error"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <p role="alert" className="rounded-xl bg-error-container px-4 py-2.5 text-sm text-error">
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-outline-variant/30 pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {files.length < MAX_MEDIA_FILES && (
+              <label
+                htmlFor="post-media"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                Add media
+                <span className="text-xs">({files.length}/{MAX_MEDIA_FILES})</span>
+              </label>
+            )}
+            <input id="post-media" type="file" multiple accept={ACCEPTED_MEDIA} onChange={addFiles} className="hidden" />
+            <span className="text-[11px] text-outline">Up to {MAX_MEDIA_SIZE_MB}MB each</span>
+          </div>
+          <div className="flex w-full justify-end gap-2 sm:w-auto">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-surface-container-lowest px-6 py-2.5 text-sm font-semibold text-on-surface shadow-sm transition-colors hover:bg-surface-container"
+              disabled={saving}
+              className="cursor-pointer rounded-full bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-1.5 rounded-full bg-primary px-8 py-2.5 text-sm font-semibold text-on-primary shadow-md transition-all hover:bg-primary-container active:scale-[0.98] disabled:opacity-70"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="material-symbols-outlined text-[18px]">send</span>
-              {saving ? 'Creating...' : 'Create Post'}
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">send</span>
+              {saving ? 'Posting...' : 'Create Post'}
             </button>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
+      </section>
     </div>
   );
 }
@@ -227,8 +238,7 @@ function PostDetailsModal({ post, isAdmin, onClose, onLike, onCommentAdded }) {
       setComment('');
       onCommentAdded(post.id);
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg[0] : msg || 'Could not add comment');
+      setError(toUserMessage(err, 'Could not add comment'));
     } finally {
       setSubmitting(false);
     }
@@ -246,8 +256,7 @@ function PostDetailsModal({ post, isAdmin, onClose, onLike, onCommentAdded }) {
         likeCount: result.likeCount,
       }));
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg[0] : msg || 'Could not update like');
+      setError(toUserMessage(err, 'Could not update like'));
     } finally {
       setLiking(false);
     }
@@ -264,7 +273,7 @@ function PostDetailsModal({ post, isAdmin, onClose, onLike, onCommentAdded }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="post-details-title"
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-2xl md:flex-row"
+        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-2xl md:flex-row"
       >
         <div className="flex min-h-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-outline-variant/30 px-5 py-4">
@@ -277,7 +286,7 @@ function PostDetailsModal({ post, isAdmin, onClose, onLike, onCommentAdded }) {
               aria-label="Close post details"
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low"
             >
-              <span className="material-symbols-outlined">close</span>
+              <span aria-hidden="true" className="material-symbols-outlined">close</span>
             </button>
           </header>
 
@@ -345,7 +354,7 @@ function PostDetailsModal({ post, isAdmin, onClose, onLike, onCommentAdded }) {
                 {currentPost.likeCount} likes
               </button>
               <span className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-                <span className="material-symbols-outlined text-[18px]">visibility</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">visibility</span>
                 {currentPost.views} views
               </span>
             </div>
@@ -429,8 +438,7 @@ export default function Posts() {
       const { data } = await api.get('/posts');
       setPosts(data);
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg[0] : msg || 'Could not load posts');
+      setError(toUserMessage(err, 'Could not load posts'));
     } finally {
       setLoading(false);
     }
@@ -505,8 +513,7 @@ export default function Posts() {
         ),
       );
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setDetailsError(Array.isArray(msg) ? msg[0] : msg || 'Could not load post details');
+      setDetailsError(toUserMessage(err, 'Could not load post details'));
     } finally {
       setDetailsLoading(false);
     }
@@ -518,8 +525,7 @@ export default function Posts() {
       await api.delete(`/posts/${id}`);
       setPosts((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg[0] : msg || 'Could not delete post');
+      setError(toUserMessage(err, 'Could not delete post'));
     }
   };
 
@@ -544,8 +550,7 @@ export default function Posts() {
       if (selectedPost?.id === moderatingPost.id) setSelectedPost(null);
       await fetchPosts();
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setModerationError(Array.isArray(msg) ? msg[0] : msg || 'Could not update post status');
+      setModerationError(toUserMessage(err, 'Could not update post status'));
     } finally {
       setModerationSaving(false);
     }
@@ -561,9 +566,9 @@ export default function Posts() {
   return (
     <div className="mx-auto w-full max-w-7xl">
       {/* Header */}
-      <div className="sticky top-16 z-30 bg-surface/95 pb-3 pt-2 backdrop-blur-xl">
+      <div className="relative mb-4 pt-2">
         <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-96 w-96 rounded-full bg-primary-fixed/40 blur-3xl" />
-        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div className="flex max-w-2xl flex-col">
             <div className="mb-1.5 flex items-center gap-2">
               <span className="rounded-full bg-primary-fixed px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
@@ -572,7 +577,7 @@ export default function Posts() {
               <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
               <span className="text-xs font-medium text-secondary">Live Feed</span>
             </div>
-            <h1 className="font-heading text-3xl font-bold tracking-tight text-on-surface">Community Posts</h1>
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">Community Posts</h1>
             <p className="mt-1.5 text-sm text-on-surface-variant">
               {isAdmin
                 ? 'Moderate community content — remove anything inappropriate.'
@@ -581,15 +586,18 @@ export default function Posts() {
           </div>
           {!isAdmin && (
             <button
+              type="button"
               onClick={() => setShowModal(true)}
               className="group inline-flex cursor-pointer items-center gap-2 self-start rounded-full bg-primary px-6 py-3 text-sm font-semibold text-on-primary shadow-lg shadow-primary/20 transition-all hover:bg-primary-container hover:shadow-xl hover:shadow-primary/30 md:self-auto"
             >
-              <span className="material-symbols-outlined text-[20px] transition-transform duration-300 group-hover:rotate-90">add</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[20px] transition-transform duration-300 group-hover:rotate-90">add</span>
               New Post
             </button>
           )}
         </div>
+      </div>
 
+      <div className="sticky top-16 z-30 bg-surface/95 pb-3 pt-2 backdrop-blur-xl">
         {/* Tabs */}
         {!isAdmin && (
           <div className="flex items-center gap-2 pb-2">
@@ -618,7 +626,7 @@ export default function Posts() {
         {/* Search + sort toolbar */}
         <div className="flex flex-col items-stretch justify-between gap-3 rounded-2xl bg-surface-container-lowest p-3 shadow-sm sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
-            <span className="material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant">
+            <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant">
               search
             </span>
             <input
@@ -629,12 +637,13 @@ export default function Posts() {
               className="h-11 w-full rounded-xl bg-surface-container-low pl-11 pr-4 text-sm text-on-surface outline-none transition-all placeholder:text-on-surface-variant focus:bg-surface-container-high"
             />
           </div>
-          <div className="flex items-center gap-1.5 rounded-xl bg-surface-container-low px-3 py-1.5">
-            <span className="material-symbols-outlined text-[18px] text-on-surface-variant">sort</span>
+          <div className="flex w-full items-center justify-between gap-1.5 rounded-xl bg-surface-container-low px-3 py-1.5 sm:w-auto sm:justify-start">
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-on-surface-variant">sort</span>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="cursor-pointer bg-transparent py-1.5 text-xs font-semibold text-on-surface outline-none"
+              aria-label="Sort posts"
+              className="min-w-0 flex-1 cursor-pointer bg-transparent py-1.5 text-xs font-semibold text-on-surface outline-none sm:flex-none"
             >
               <option value="latest">Latest First</option>
               <option value="liked">Most Liked</option>
@@ -644,14 +653,29 @@ export default function Posts() {
         </div>
       </div>
 
-      {error && <p className="mb-4 rounded-xl bg-error-container px-4 py-2.5 text-sm text-error">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-4 rounded-xl bg-error-container px-4 py-2.5 text-sm text-error">
+          {error}
+        </p>
+      )}
+
+      {showModal && (
+        <CreatePostModal
+          user={user}
+          onClose={() => setShowModal(false)}
+          onCreated={() => {
+            setShowModal(false);
+            return fetchPosts();
+          }}
+        />
+      )}
 
       {/* Feed */}
       {loading ? (
         <p className="py-20 text-center text-sm text-on-surface-variant">Loading posts...</p>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface-container-lowest py-20 shadow-sm">
-          <span className="material-symbols-outlined text-[48px] text-outline-variant">dynamic_feed</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[48px] text-outline-variant">dynamic_feed</span>
           <p className="text-sm text-on-surface-variant">
             {search || tab === 'mine'
               ? 'No posts match — try a different search or tab.'
@@ -664,11 +688,11 @@ export default function Posts() {
             {visible.map((post) => (
               <article
                 key={post.id}
-                className="group flex flex-col rounded-3xl bg-surface-container-lowest p-6 shadow-sm transition-all duration-300 hover:shadow-md"
+                className="group flex flex-col rounded-3xl bg-surface-container-lowest p-4 shadow-sm transition-all duration-300 hover:shadow-md sm:p-6"
               >
                 <div className="flex flex-col">
                   {/* Badges row */}
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     {post.isMine ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-primary-fixed px-3 py-1 text-[10px] font-bold tracking-wide text-primary">
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
@@ -690,7 +714,7 @@ export default function Posts() {
                         title="Delete post"
                         className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container hover:text-error"
                       >
-                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-[16px]">delete</span>
                       </button>
                     )}
                     {isAdmin && (
@@ -792,6 +816,7 @@ export default function Posts() {
                     <button
                       onClick={() => !isAdmin && toggleLike(post).catch((err) => setError(err.message))}
                       disabled={isAdmin || post.status !== 'active'}
+                      aria-label={post.likedByMe ? `Unlike ${post.title}` : `Like ${post.title}`}
                       className={`flex items-center gap-1.5 text-xs font-semibold transition-all ${
                         post.likedByMe ? 'text-error' : 'text-on-surface-variant'
                       } ${isAdmin || post.status !== 'active' ? 'cursor-default' : 'cursor-pointer hover:text-error active:scale-110'}`}
@@ -805,11 +830,11 @@ export default function Posts() {
                       className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-on-surface-variant transition-colors hover:text-primary"
                       aria-label={`View ${post.commentCount || 0} comments`}
                     >
-                      <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">chat_bubble</span>
                       {post.commentCount || 0}
                     </button>
                     <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                      <span className="material-symbols-outlined text-[18px]">visibility</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">visibility</span>
                       {post.views}
                     </span>
                   </div>
@@ -823,20 +848,11 @@ export default function Posts() {
         </>
       )}
 
-      {showModal && (
-        <CreatePostModal
-          onClose={() => setShowModal(false)}
-          onCreated={() => {
-            setShowModal(false);
-            fetchPosts();
-          }}
-        />
-      )}
       {moderatingPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/50 p-4 backdrop-blur-sm">
           <form
             onSubmit={saveModeration}
-            className="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl"
+            className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-3xl bg-surface-container-lowest p-5 shadow-2xl sm:p-6"
           >
             <h2 className="font-heading text-xl font-bold text-on-surface">
               {moderationStatus === 'active'
@@ -874,19 +890,19 @@ export default function Posts() {
                 {moderationError}
               </p>
             )}
-            <div className="mt-5 flex justify-end gap-3">
+            <div className="mt-5 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setModeratingPost(null)}
                 disabled={moderationSaving}
-                className="cursor-pointer rounded-full bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface disabled:opacity-50"
+                className="flex-1 cursor-pointer rounded-full bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface disabled:opacity-50 sm:flex-none"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={moderationSaving || (moderationStatus !== 'active' && !moderationReason.trim())}
-                className="cursor-pointer rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 cursor-pointer rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
               >
                 {moderationSaving ? 'Saving…' : moderationStatus === 'active' ? 'Restore post' : 'Confirm'}
               </button>

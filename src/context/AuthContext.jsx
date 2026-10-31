@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import api from '../api/axios';
+import { toUserMessage } from '../api/errors';
 
 const AuthContext = createContext(null);
 
@@ -45,31 +46,44 @@ export function AuthProvider({ children }) {
     setIsCheckingSession(true);
     setSessionError('');
 
-    api
-      .get('/users/me', { signal: controller.signal })
-      .then(({ data }) => {
-        if (!active) return;
-        localStorage.setItem('user', JSON.stringify(data));
-        setUser(data);
-      })
-      .catch((err) => {
-        if (!active) return;
-        if (err.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setUser(null);
-          return;
-        }
+    // The session check blocks the whole app, so a single slow or dropped
+    // request should not be the end of it: give it one more go before
+    // showing the retry panel.
+    const verify = (attempt) =>
+      api.get('/users/me', { signal: controller.signal }).then(
+        ({ data }) => {
+          if (!active) return;
+          localStorage.setItem('user', JSON.stringify(data));
+          setUser(data);
+          setIsCheckingSession(false);
+        },
+        (err) => {
+          if (!active) return;
 
-        const message = err.response?.data?.message;
-        setSessionError(
-          (Array.isArray(message) ? message[0] : message) ||
-            'Could not verify your session. Check your connection and try again.',
-        );
-      })
-      .finally(() => {
-        if (active) setIsCheckingSession(false);
-      });
+          if (err.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+            setIsCheckingSession(false);
+            return;
+          }
+
+          // No response at all means the request never landed, and a 5xx
+          // means the server had a bad moment. Both are worth one retry.
+          const retryable = !err.response || err.response.status >= 500;
+          if (retryable && attempt < 2) {
+            verify(attempt + 1);
+            return;
+          }
+
+          setSessionError(
+            toUserMessage(err, 'Could not verify your session. Check your connection and try again.'),
+          );
+          setIsCheckingSession(false);
+        },
+      );
+
+    verify(1);
 
     return () => {
       active = false;
@@ -85,12 +99,21 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+    // A rejected sign in is a form error, not an expired session.
+    const { data } = await api.post(
+      '/auth/login',
+      { email, password },
+      { skipAuthRedirect: true },
+    );
     saveSession(data);
   };
 
   const signup = async (name, email, password) => {
-    const { data } = await api.post('/auth/signup', { name, email, password });
+    const { data } = await api.post(
+      '/auth/signup',
+      { name, email, password },
+      { skipAuthRedirect: true },
+    );
     saveSession(data);
   };
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { toUserMessage } from '../api/errors';
 import { useAuth } from '../context/AuthContext';
 
 const ACCEPTED_PHOTO = 'image/jpeg,image/png,image/gif,image/webp';
@@ -39,8 +40,7 @@ export default function Profile() {
       setProfile(data);
       if (kind === 'avatar') updateUser({ avatarUrl: data.avatarUrl });
     } catch (err) {
-      const msg = err.response?.data?.message;
-      window.alert(Array.isArray(msg) ? msg[0] : msg || 'Upload failed');
+      window.alert(toUserMessage(err, 'Upload failed'));
     } finally {
       setUploadingPhoto(null);
     }
@@ -63,8 +63,7 @@ export default function Profile() {
       updateUser({ name: data.name });
       setNameMsg({ ok: true, text: 'Name updated' });
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setNameMsg({ ok: false, text: Array.isArray(msg) ? msg[0] : msg || 'Update failed' });
+      setNameMsg({ ok: false, text: toUserMessage(err, 'Could not update your name') });
     } finally {
       setSavingName(false);
     }
@@ -75,13 +74,14 @@ export default function Profile() {
     setPassMsg(null);
     setSavingPass(true);
     try {
-      await api.patch('/users/me', { currentPassword, newPassword });
+      // The API answers 401 when the current password is wrong. That is a
+      // form error, not an expired session, so keep the user signed in.
+      await api.patch('/users/me', { currentPassword, newPassword }, { skipAuthRedirect: true });
       setCurrentPassword('');
       setNewPassword('');
       setPassMsg({ ok: true, text: 'Password changed' });
     } catch (err) {
-      const msg = err.response?.data?.message;
-      setPassMsg({ ok: false, text: Array.isArray(msg) ? msg[0] : msg || 'Change failed' });
+      setPassMsg({ ok: false, text: toUserMessage(err, 'Could not change your password') });
     } finally {
       setSavingPass(false);
     }
@@ -93,6 +93,8 @@ export default function Profile() {
   const Msg = ({ msg }) =>
     msg && (
       <p
+        // Errors must be announced; a plain <p> is silent for screen readers.
+        role={msg.ok ? 'status' : 'alert'}
         className={`rounded-xl px-4 py-2.5 text-sm ${
           msg.ok ? 'bg-secondary-container/50 text-secondary' : 'bg-error-container text-error'
         }`}
@@ -127,7 +129,7 @@ export default function Profile() {
             htmlFor="cover-upload"
             className="absolute bottom-3 right-3 z-10 flex cursor-pointer items-center gap-1.5 rounded-full bg-on-surface/60 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-colors hover:bg-on-surface/80"
           >
-            <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[16px]">photo_camera</span>
             {uploadingPhoto === 'cover'
               ? 'Uploading...'
               : profile.coverUrl
@@ -163,7 +165,7 @@ export default function Profile() {
                   title={uploadingPhoto === 'avatar' ? 'Uploading...' : 'Change profile photo'}
                   className="absolute bottom-1 right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-on-primary shadow-md ring-2 ring-surface-container-lowest transition-colors hover:bg-primary-container"
                 >
-                  <span className="material-symbols-outlined text-[18px]">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
                     {uploadingPhoto === 'avatar' ? 'hourglass_top' : 'photo_camera'}
                   </span>
                 </label>
@@ -191,7 +193,7 @@ export default function Profile() {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">
                   <span className="font-semibold text-on-surface">{profile.email}</span>
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[16px]">calendar_today</span>
                     Member since{' '}
                     {new Date(profile.createdAt).toLocaleDateString(undefined, {
                       month: 'short',
@@ -210,7 +212,7 @@ export default function Profile() {
           {/* Personal information */}
           <section className="flex flex-col gap-4 rounded-[2rem] bg-surface-container-lowest p-6 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] sm:p-8">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[22px] text-primary">badge</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-primary">badge</span>
               <h2 className="font-heading text-lg font-semibold text-on-surface">Personal Information</h2>
             </div>
 
@@ -230,10 +232,10 @@ export default function Profile() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant" htmlFor="email">
                   Email Address
                 </label>
-                <input type="email" value={profile.email} disabled className={`${inputClass} cursor-not-allowed opacity-60`} />
+                <input id="email" type="email" value={profile.email} disabled className={`${inputClass} cursor-not-allowed opacity-60`} />
               </div>
               <button
                 type="submit"
@@ -249,7 +251,7 @@ export default function Profile() {
           <section className="flex flex-col gap-4 rounded-[2rem] bg-surface-container-lowest p-6 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] sm:p-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[22px] text-primary">security</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[22px] text-primary">security</span>
                 <h2 className="font-heading text-lg font-semibold text-on-surface">Security</h2>
               </div>
               <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[10px] font-bold text-secondary">

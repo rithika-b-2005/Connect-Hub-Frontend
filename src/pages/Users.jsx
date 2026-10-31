@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
+import { toUserMessage } from "../api/errors";
 import { useAuth } from "../context/AuthContext";
 
-const errMsg = (err, fallback) => {
-  const msg = err.response?.data?.message;
-  return Array.isArray(msg) ? msg[0] : msg || fallback;
-};
+const errMsg = (err, fallback) => toUserMessage(err, fallback);
 
 export default function Users() {
   const { user: me } = useAuth();
@@ -85,13 +83,57 @@ export default function Users() {
     }
   };
 
+  const roleSelectClass = (u, isSelf) =>
+    `rounded-xl bg-surface-container-high px-3 py-1.5 text-xs font-bold capitalize outline-none transition-colors focus:shadow-[0_0_0_3px_rgba(67,56,202,0.15)] ${
+      isSelf ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+    } ${u.role === "admin" ? "text-primary" : "text-on-surface-variant"}`;
+
+  const ActionButtons = ({ u, isSelf, busy }) => (
+    <div className="flex items-center justify-end gap-1">
+      <button
+        onClick={() => resetPassword(u)}
+        disabled={busy}
+        title="Reset password"
+        aria-label={`Reset password for ${u.name}`}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary disabled:opacity-40"
+      >
+        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">key</span>
+      </button>
+      <button
+        onClick={() => removeUser(u)}
+        disabled={isSelf || busy}
+        title={
+          isSelf ? "You cannot delete your own account" : "Delete user"
+        }
+        aria-label={`Delete ${u.name}`}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container hover:text-error disabled:opacity-40"
+      >
+        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">delete</span>
+      </button>
+    </div>
+  );
+
+  const Avatar = ({ u }) => (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-fixed text-xs font-bold text-primary">
+      {u.avatarUrl ? (
+        <img
+          src={`${api.defaults.baseURL}${u.avatarUrl}`}
+          alt={u.name}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        u.name[0]?.toUpperCase()
+      )}
+    </span>
+  );
+
   return (
     <div className="mx-auto w-full max-w-7xl">
       <div className="mb-6 flex flex-col gap-1 pt-2">
         <span className="w-fit rounded-full bg-primary-fixed px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
           Member Directory
         </span>
-        <h1 className="font-heading text-3xl font-bold tracking-tight text-on-surface">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
           Users
         </h1>
         <p className="text-sm text-on-surface-variant">
@@ -102,7 +144,7 @@ export default function Users() {
       {/* Search + role filter */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex w-full items-center sm:max-w-xs">
-          <span className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
+          <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3.5 text-[20px] text-outline">
             search
           </span>
           <input
@@ -116,7 +158,7 @@ export default function Users() {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          className="rounded-2xl bg-surface-container-lowest px-4 py-2.5 text-sm text-on-surface shadow-sm outline-none transition-all focus:shadow-[0_0_0_3px_rgba(67,56,202,0.15)]"
+          className="w-full rounded-2xl bg-surface-container-lowest px-4 py-2.5 text-sm text-on-surface shadow-sm outline-none transition-all focus:shadow-[0_0_0_3px_rgba(67,56,202,0.15)] sm:w-auto"
         >
           <option value="">All roles</option>
           <option value="admin">Admin</option>
@@ -125,12 +167,85 @@ export default function Users() {
       </div>
 
       {error && (
-        <p className="mb-4 rounded-xl bg-error-container px-4 py-2.5 text-sm text-error">
+        <p role="alert" className="mb-4 rounded-xl bg-error-container px-4 py-2.5 text-sm text-error">
           {error}
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-2xl bg-surface-container-lowest shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)]">
+      {/* Card list (phones) */}
+      <ul className="flex flex-col gap-3 md:hidden">
+        {loading ? (
+          <li className="rounded-2xl bg-surface-container-lowest px-4 py-10 text-center text-sm text-on-surface-variant shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)]">
+            Loading...
+          </li>
+        ) : users.length === 0 ? (
+          <li className="rounded-2xl bg-surface-container-lowest px-4 py-10 text-center text-sm text-on-surface-variant shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)]">
+            No users found
+          </li>
+        ) : (
+          users.map((u) => {
+            const isSelf = u.id === me?.id;
+            const busy = busyId === u.id;
+            return (
+              <li
+                key={u.id}
+                className="rounded-2xl bg-surface-container-lowest p-4 shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)]"
+              >
+                <div className="flex items-center gap-3">
+                  <Avatar u={u} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-on-surface">
+                      <span className="truncate">{u.name}</span>
+                      {isSelf && (
+                        <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                          You
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-on-surface-variant">{u.email}</p>
+                  </div>
+                </div>
+
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-surface-container-low px-3 py-2">
+                    <dt className="text-on-surface-variant">Joined</dt>
+                    <dd className="font-semibold text-on-surface">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-surface-container-low px-3 py-2">
+                    <dt className="text-on-surface-variant">Role</dt>
+                    <dd className="mt-1">
+                      <select
+                        value={u.role}
+                        disabled={isSelf || busy}
+                        onChange={(e) => changeRole(u, e.target.value)}
+                        title={
+                          isSelf
+                            ? "You cannot change your own role"
+                            : "Change role"
+                        }
+                        className={roleSelectClass(u, isSelf)}
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="user">User</option>
+                      </select>
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="mt-3 flex items-center justify-between border-t border-outline-variant/30 pt-3">
+                  <span className="text-[11px] text-on-surface-variant">Account actions</span>
+                  <ActionButtons u={u} isSelf={isSelf} busy={busy} />
+                </div>
+              </li>
+            );
+          })
+        )}
+      </ul>
+
+      {/* Table (tablet and up) */}
+      <div className="hidden overflow-x-auto rounded-2xl bg-surface-container-lowest shadow-[0_4px_20px_-2px_rgba(67,56,202,0.06)] md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-outline-variant/40 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
             <tr>
@@ -171,17 +286,7 @@ export default function Users() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3 font-semibold text-on-surface">
-                        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary-fixed text-xs font-bold text-primary">
-                          {u.avatarUrl ? (
-                            <img
-                              src={`${api.defaults.baseURL}${u.avatarUrl}`}
-                              alt={u.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            u.name[0]?.toUpperCase()
-                          )}
-                        </span>
+                        <Avatar u={u} />
                         <span className="flex items-center gap-2">
                           {u.name}
                           {isSelf && (
@@ -205,11 +310,7 @@ export default function Users() {
                             ? "You cannot change your own role"
                             : "Change role"
                         }
-                        className={`rounded-xl bg-surface-container-high px-3 py-1.5 text-xs font-bold capitalize outline-none transition-colors focus:shadow-[0_0_0_3px_rgba(67,56,202,0.15)] ${
-                          isSelf
-                            ? "cursor-not-allowed opacity-60"
-                            : "cursor-pointer"
-                        } ${u.role === "admin" ? "text-primary" : "text-on-surface-variant"}`}
+                        className={roleSelectClass(u, isSelf)}
                       >
                         <option value="admin">Admin</option>
                         <option value="user">User</option>
@@ -219,32 +320,7 @@ export default function Users() {
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => resetPassword(u)}
-                          disabled={busy}
-                          title="Reset password"
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary disabled:opacity-40"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            key
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => removeUser(u)}
-                          disabled={isSelf || busy}
-                          title={
-                            isSelf
-                              ? "You cannot delete your own account"
-                              : "Delete user"
-                          }
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container hover:text-error disabled:opacity-40"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            delete
-                          </span>
-                        </button>
-                      </div>
+                      <ActionButtons u={u} isSelf={isSelf} busy={busy} />
                     </td>
                   </tr>
                 );
@@ -258,8 +334,8 @@ export default function Users() {
       {issued && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 p-4 backdrop-blur-sm">
           <div className="absolute inset-0" onClick={() => setIssued(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-[2rem] bg-surface-container-lowest p-8 shadow-2xl">
-            <h3 className="font-heading text-xl font-bold text-on-surface">
+          <div className="relative z-10 w-full max-w-md rounded-[2rem] bg-surface-container-lowest p-6 shadow-2xl sm:p-8">
+            <h3 className="font-heading text-lg font-bold text-on-surface sm:text-xl">
               Password reset
             </h3>
             <p className="mt-1 text-sm text-on-surface-variant">

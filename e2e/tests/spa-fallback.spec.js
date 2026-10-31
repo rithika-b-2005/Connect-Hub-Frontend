@@ -1,0 +1,60 @@
+import { test, expect } from '@playwright/test';
+import { seedSession } from '../helpers/auth.js';
+
+// Every client-side route the router can land on.
+const ROUTES = ['/', '/login', '/signup', '/posts', '/profile', '/users'];
+
+test.describe('SPA fallback — refreshing any route must serve the app', () => {
+  for (const route of ROUTES) {
+    test(`${route} returns the HTML shell, not a 404`, async ({ request, baseURL }) => {
+      const response = await request.get(`${baseURL}${route}`);
+
+      expect(
+        response.status(),
+        `${route} should be served by the SPA fallback. On Render this needs a rewrite rule: source /*, destination /index.html.`,
+      ).toBe(200);
+
+      expect(response.headers()['content-type']).toContain('text/html');
+
+      const body = await response.text();
+      expect(body, `${route} should contain the React root element`).toContain('<div id="root">');
+      expect(body, `${route} must not be the platform 404 page`).not.toMatch(/page not found/i);
+      expect(body).not.toMatch(/^\s*not found\s*$/i);
+    });
+  }
+
+  test('a hard refresh keeps the route and re-renders the page', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+
+    await page.reload();
+
+    // Router state survives the reload and the same view comes back.
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+  });
+
+  test('an authenticated deep link survives a refresh', async ({ page, request }) => {
+    await seedSession(page, request);
+    await page.goto('/posts');
+    await expect(page).toHaveURL(/\/posts$/);
+
+    await page.reload();
+
+    await expect(page).toHaveURL(/\/posts$/);
+    await expect(page.getByRole('heading', { name: 'Community Posts' })).toBeVisible();
+  });
+
+  test('no unhandled console errors while booting the shell', async ({ page }) => {
+    const errors = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+
+    expect(errors, `Console errors on boot: ${errors.join(' | ')}`).toHaveLength(0);
+  });
+});

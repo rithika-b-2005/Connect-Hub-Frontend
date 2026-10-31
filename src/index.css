@@ -27,6 +27,18 @@
   --color-error-container: #ffdad6;
 }
 
+/* Mobile hardening: no horizontal overflow, no blue tap flash, no iOS text inflation */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body {
+  /* `clip` (not `hidden`) — keeps position: sticky working on the page headers */
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 /* Invisible scrollbars everywhere — scrolling still works */
 * {
   scrollbar-width: none; /* Firefox */
