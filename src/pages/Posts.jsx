@@ -127,7 +127,6 @@ function CreatePostModal({ user, onClose, onCreated }) {
           id="post-title"
           type="text"
           required
-          maxLength={150}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Post title"
