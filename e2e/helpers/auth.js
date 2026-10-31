@@ -56,6 +56,25 @@ function writeCachedSession(email, session) {
 }
 
 /**
+ * Is the cached token still good?
+ *
+ * The account behind it can be gone: a wiped database, or an account that was
+ * deleted and signed up again with a new id. The API rejects such a token, so
+ * using it would fail every test that needs a session instead of signing in
+ * again.
+ */
+async function cachedSessionIsUsable(request, token) {
+  try {
+    const response = await request.get(`${API_URL}/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.ok();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Perform a request that is allowed to fail with 429, retrying until the
  * throttle window resets.
  */
@@ -88,8 +107,11 @@ export async function apiLogin(request, credentials = E2E_USER, { fresh = false 
 
     const onDisk = readCachedSession(credentials.email);
     if (onDisk) {
-      sessionCache.set(credentials.email, onDisk);
-      return onDisk;
+      if (await cachedSessionIsUsable(request, onDisk.token)) {
+        sessionCache.set(credentials.email, onDisk);
+        return onDisk;
+      }
+      // The account behind the token is gone. Fall through and sign in again.
     }
   }
 
