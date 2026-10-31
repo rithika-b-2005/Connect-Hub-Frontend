@@ -10,6 +10,9 @@ const LIVE_URL = process.env.E2E_LIVE_URL || 'https://connect-hub-frontend-1.onr
 export default defineConfig({
   testDir: './e2e/tests',
   outputDir: './e2e/.artifacts',
+  // The shared account has to exist before the first test runs: the UI sign-in
+  // path cannot recover from a missing account.
+  globalSetup: './e2e/helpers/global-setup.js',
   // The backend throttles logins and lives on a free-tier host that can take
   // a while to answer, so tests need more headroom than the defaults.
   timeout: 180_000,

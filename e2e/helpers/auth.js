@@ -102,14 +102,26 @@ export async function apiLogin(request, credentials = E2E_USER, { fresh = false 
     // against a fresh backend. Sign up for it and use the token signup
     // returns, which is one request instead of a login.
     if (response?.status() === 401) {
-      try {
-        const created = await createTestAccount(request, credentials);
+      const created = await createTestAccount(request, credentials).catch(() => null);
+
+      if (created) {
         sessionCache.set(credentials.email, created);
         writeCachedSession(credentials.email, created);
         return created;
-      } catch {
-        // The account does exist and the sign in was rejected. Fall through
-        // and report the login failure, which says more.
+      }
+
+      // Another worker created the account between the two requests. Sign in
+      // again now that it exists.
+      const retry = await requestWithThrottleRetry(request, 'post', `${API_URL}/auth/login`, {
+        data: { email: credentials.email, password: credentials.password },
+      });
+
+      if (retry?.ok()) {
+        const data = await retry.json();
+        const session = { token: data.accessToken, user: data.user };
+        sessionCache.set(credentials.email, session);
+        writeCachedSession(credentials.email, session);
+        return session;
       }
     }
 
