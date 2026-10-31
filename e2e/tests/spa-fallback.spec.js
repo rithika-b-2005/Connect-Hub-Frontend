@@ -35,6 +35,9 @@ test.describe('SPA fallback — refreshing any route must serve the app', () => 
     // The last-resort net for hosts that serve a custom 404 page.
     await expect(access(join(dist, '404.html'))).resolves.toBeUndefined();
 
+    // The marker, so a deploy can be checked from outside.
+    await expect(access(join(dist, 'spa-fallback.json'))).resolves.toBeUndefined();
+
     for (const route of BUILD_ROUTES) {
       const shell = join(dist, route, 'index.html');
       await expect(access(shell), `dist/${route}/index.html is missing`).resolves.toBeUndefined();

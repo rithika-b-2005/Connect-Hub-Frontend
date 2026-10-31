@@ -54,15 +54,17 @@ real file in `dist/` is rewritten to `/index.html`. Without it, refreshing on
 `/login`, `/posts`, or any other client-side route returns a 404, because the
 static file server has no fallback for `BrowserRouter` deep links.
 
-The build does not rely on that rule. `scripts/spa-fallback.mjs` runs after
-`vite build` and writes the fallback into `dist/`:
+The build does not rely on that rule. The `spa-fallback` Vite plugin
+(`scripts/spa-fallback.mjs`) writes the fallback into `dist/` on every build:
 
 - `dist/<route>/index.html` for every route in `src/App.jsx`, so a host that
   resolves a directory to its index.html answers with a 200;
 - `dist/404.html`, so a host that serves a custom 404 page boots the app
-  instead of a plain-text error.
+  instead of a plain-text error;
+- `dist/spa-fallback.json`, a marker that tells you a deploy picked the
+  change up.
 
-Both files are copies of `dist/index.html`, and the app reads the path with
+Both shells are copies of `dist/index.html`, and the app reads the path with
 the History API, so it renders the right view either way.
 
 If the site was created from the Render dashboard rather than a Blueprint, add

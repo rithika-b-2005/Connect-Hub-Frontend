@@ -120,17 +120,19 @@ a password twice, was locked out with a 429.
 from the Render dashboard rather than from the Blueprint, so the rewrite was
 never applied. Refreshing on any client-side route returns a plain-text 404.
 
-**Code fix** — `scripts/spa-fallback.mjs` runs after `vite build` and writes
-the fallback into the build output, so the app boots on a deep link no matter
-how the host is configured:
+**Code fix** — the `spa-fallback` Vite plugin (`scripts/spa-fallback.mjs`)
+writes the fallback into the build output on every build, so the app boots on
+a deep link no matter how the host is configured:
 
 - `dist/<route>/index.html` for every route in `src/App.jsx`. A host that
   resolves a directory to its index.html answers `/login` with a **200**.
 - `dist/404.html`, a copy of the app shell. A host that serves a custom 404
   page boots the app instead of the plain-text error.
+- `dist/spa-fallback.json`, a marker that tells you a deploy picked the
+  change up.
 
-Both are copies of `dist/index.html`; the app reads the path with the History
-API, so it renders the right view either way.
+The shells are copies of `dist/index.html`; the app reads the path with the
+History API, so it renders the right view either way.
 
 **Still worth doing in the dashboard** — Render → *connect-hub-frontend-1* →
 Settings → Rewrites → Add Rewrite — source `/*`, destination `/index.html`,
