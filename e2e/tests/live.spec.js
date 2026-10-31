@@ -13,15 +13,36 @@ test.describe('live deployment', () => {
     await expect(page.locator('#root')).toBeAttached();
   });
 
-  test('deep routes are rewritten to the SPA shell', async ({ request, baseURL }) => {
+  test('deep routes serve the app instead of a 404 page', async ({ page }) => {
+    // The host may answer 404 and still serve the app shell from 404.html,
+    // so the status alone is not the contract — the app has to boot and
+    // render. Add the Render rewrite rule (source /*, destination
+    // /index.html, type Rewrite) to turn the 404 into a 200.
     for (const route of ['/login', '/signup', '/posts']) {
-      const response = await request.get(`${baseURL}${route}`);
+      const response = await page.goto(route);
+      const status = response?.status() ?? 0;
+
       expect(
-        response.status(),
-        `${route} returned ${response.status()} on ${LIVE_FRONTEND_URL}. Add the Render rewrite rule: source /*, destination /index.html, type Rewrite.`,
-      ).toBe(200);
-      expect(await response.text()).toContain('<div id="root">');
+        [200, 404],
+        `${route} answered ${status} on ${LIVE_FRONTEND_URL}. The build ships a shell for every route, so this means the deploy is stale — check that the latest commit was built.`,
+      ).toContain(status);
+
+      await expect(page.locator('#root')).toBeAttached();
+      await expect(page).toHaveTitle(/ConnectHub/i);
+
+      const body = await response?.text();
+      expect(body, `${route} must not be the platform 404 page`).not.toMatch(
+        /^\s*not found\s*$/i,
+      );
     }
+  });
+
+  test('refreshing a deep route keeps the route and re-renders', async ({ page }) => {
+    await page.goto('/login');
+    await page.reload();
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
   });
 
   test('static assets resolve', async ({ page }) => {

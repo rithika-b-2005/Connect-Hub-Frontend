@@ -119,15 +119,26 @@ a password twice, was locked out with a 429.
 `render.yaml` declares the right SPA rewrite, but the live site was created
 from the Render dashboard rather than from the Blueprint, so the rewrite was
 never applied. Refreshing on any client-side route returns a plain-text 404.
-Render serves a custom `404.html` for static sites, but the site answers with
-its built-in plain-text 404, so the fallback has to be the rewrite.
 
-**To fix:** Render → *connect-hub-frontend-1* → Settings → Rewrites →
-Add Rewrite — source `/*`, destination `/index.html`, type *Rewrite* — then
-redeploy. `e2e/tests/live.spec.js` and `e2e/tests/spa-fallback.spec.js` are
-the regression guard for this: against the live site they currently report
-**9 failed, 4 passed** — every deep route fails, the root and the asset
-checks pass.
+**Code fix** — `scripts/spa-fallback.mjs` runs after `vite build` and writes
+the fallback into the build output, so the app boots on a deep link no matter
+how the host is configured:
+
+- `dist/<route>/index.html` for every route in `src/App.jsx`. A host that
+  resolves a directory to its index.html answers `/login` with a **200**.
+- `dist/404.html`, a copy of the app shell. A host that serves a custom 404
+  page boots the app instead of the plain-text error.
+
+Both are copies of `dist/index.html`; the app reads the path with the History
+API, so it renders the right view either way.
+
+**Still worth doing in the dashboard** — Render → *connect-hub-frontend-1* →
+Settings → Rewrites → Add Rewrite — source `/*`, destination `/index.html`,
+type *Rewrite*, then redeploy. That turns the 404 into a 200 for every path,
+including ones the build does not know about.
+
+`e2e/tests/live.spec.js` and `e2e/tests/spa-fallback.spec.js` are the
+regression guard for this.
 
 ---
 

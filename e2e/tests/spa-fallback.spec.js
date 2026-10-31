@@ -1,8 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { access, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { seedSession } from '../helpers/auth.js';
 
 // Every client-side route the router can land on.
 const ROUTES = ['/', '/login', '/signup', '/posts', '/profile', '/users'];
+
+// The routes that need their own shell in the build output. The root already
+// has one.
+const BUILD_ROUTES = ['login', 'signup', 'posts', 'profile', 'users'];
 
 test.describe('SPA fallback — refreshing any route must serve the app', () => {
   for (const route of ROUTES) {
@@ -11,7 +17,7 @@ test.describe('SPA fallback — refreshing any route must serve the app', () => 
 
       expect(
         response.status(),
-        `${route} should be served by the SPA fallback. On Render this needs a rewrite rule: source /*, destination /index.html.`,
+        `${route} should be served by the SPA fallback. The build writes a shell for every route, and on Render a rewrite rule covers the rest.`,
       ).toBe(200);
 
       expect(response.headers()['content-type']).toContain('text/html');
@@ -22,6 +28,21 @@ test.describe('SPA fallback — refreshing any route must serve the app', () => 
       expect(body).not.toMatch(/^\s*not found\s*$/i);
     });
   }
+
+  test('the build output carries a fallback for every route', async () => {
+    const dist = join(process.cwd(), 'dist');
+
+    // The last-resort net for hosts that serve a custom 404 page.
+    await expect(access(join(dist, '404.html'))).resolves.toBeUndefined();
+
+    for (const route of BUILD_ROUTES) {
+      const shell = join(dist, route, 'index.html');
+      await expect(access(shell), `dist/${route}/index.html is missing`).resolves.toBeUndefined();
+
+      const body = await readFile(shell, 'utf8');
+      expect(body, `dist/${route}/index.html is not the app shell`).toContain('<div id="root">');
+    }
+  });
 
   test('a hard refresh keeps the route and re-renders the page', async ({ page }) => {
     await page.goto('/login');

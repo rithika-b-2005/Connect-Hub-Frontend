@@ -54,9 +54,21 @@ real file in `dist/` is rewritten to `/index.html`. Without it, refreshing on
 `/login`, `/posts`, or any other client-side route returns a 404, because the
 static file server has no fallback for `BrowserRouter` deep links.
 
+The build does not rely on that rule. `scripts/spa-fallback.mjs` runs after
+`vite build` and writes the fallback into `dist/`:
+
+- `dist/<route>/index.html` for every route in `src/App.jsx`, so a host that
+  resolves a directory to its index.html answers with a 200;
+- `dist/404.html`, so a host that serves a custom 404 page boots the app
+  instead of a plain-text error.
+
+Both files are copies of `dist/index.html`, and the app reads the path with
+the History API, so it renders the right view either way.
+
 If the site was created from the Render dashboard rather than a Blueprint, add
-the same rule manually: **Static Site → Settings → Rewrites → Add Rewrite**,
-source `/*`, destination `/index.html`, type *Rewrite*, then redeploy.
+the rewrite rule manually as well — it turns the 404 into a 200:
+**Static Site → Settings → Rewrites → Add Rewrite**, source `/*`, destination
+`/index.html`, type *Rewrite*, then redeploy.
 
 `public/_redirects` carries the equivalent rule for Netlify.
 
